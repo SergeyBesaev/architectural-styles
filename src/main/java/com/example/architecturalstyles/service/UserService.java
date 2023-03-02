@@ -1,15 +1,16 @@
 package com.example.architecturalstyles.service;
 
-import com.example.architecturalstyles.entities.Role;
 import com.example.architecturalstyles.entities.User;
 import com.example.architecturalstyles.repo.RoleRepository;
 import com.example.architecturalstyles.repo.UserRepository;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.HttpServerErrorException;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 /**
@@ -20,6 +21,8 @@ import java.util.UUID;
 @Service
 public class UserService implements IUserService {
 
+    private Object object;
+
     private final UserRepository repo;
     public final RoleRepository roleRepository;
 
@@ -28,21 +31,23 @@ public class UserService implements IUserService {
         this.roleRepository = roleRepository;
     }
 
-    @Transactional // TODO: чекнуть как работает аннотация @Transactional
-    public User getUserByEmail(String email) {
+    @Transactional
+    public Optional<User> getUserByEmail(String email) {
+        Optional<User> userByEmail = repo.findByEmail(email);
+        User user = userByEmail.get();
         return repo.findByEmail(email);
     }
 
-    @Transactional
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public List<User> getAllUsersFromDB() {
         return repo.findAll();
     }
 
     @Transactional
     public User saveUser(User user) {
-        User userFromDB = repo.findByEmail(user.getEmail());
+        Optional<User> userFromDB = repo.findByEmail(user.getEmail());
 
-        if (userFromDB != null) {
+        if (userFromDB.isPresent()) {
             throw new HttpServerErrorException(HttpStatus.BAD_REQUEST, "User with email " + user.getEmail() + " already exist");
         }
         return repo.save(user);
